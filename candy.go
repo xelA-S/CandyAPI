@@ -10,10 +10,11 @@ import (
 
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-contrib/cors"
 	_ "github.com/go-sql-driver/mysql"
 )
 
-
+//creates a candy schema
 type Candy struct{
 	Id int `json:id`
 	Name string `json:name`
@@ -21,7 +22,7 @@ type Candy struct{
 	Quantity int `json:quantity`
 }
 
-
+//handles the sql database info
 func data_info() (string) {
 
 	data, err := ioutil.ReadFile("db.txt")
@@ -35,9 +36,10 @@ func data_info() (string) {
 
 
 
-
+//handles the server and endpoints
 func main() {
 	router := gin.Default()
+	router.Use(cors.Default())
 
 	router.GET("/candy",getCandy)
 	router.GET("/candy/:id",candyById)
@@ -46,11 +48,10 @@ func main() {
 	router.DELETE("/deleteCandy",deleteCandy)
 	router.Run("localhost:5000")
 
-	fmt.Println(findCandyById("1"))
 	
 }
 
-
+//retuns the list of all available candy
 func getCandy(c *gin.Context){
 
 
@@ -69,7 +70,7 @@ func getCandy(c *gin.Context){
 		panic(err.Error())
 	}
 
-	
+	var CandyList []Candy
 	for results.Next(){
 		var candy Candy
 
@@ -77,8 +78,12 @@ func getCandy(c *gin.Context){
 		if err != nil{
 			panic(err.Error())
 		}
-		c.IndentedJSON(http.StatusOK,candy)
-	}	
+		CandyList=append(CandyList,candy)
+
+		
+
+		}	
+	c.IndentedJSON(http.StatusOK,CandyList)
 	
 	
 
@@ -86,7 +91,7 @@ func getCandy(c *gin.Context){
 }
 
 //finds candy by id from the browser via the findCandyById function 
-func candyById (c *gin.Context){
+func candyById(c *gin.Context){
 	id:= c.Param("id")
 	candy, err := findCandyById(id)
 
@@ -172,9 +177,26 @@ func createCandy(c *gin.Context){
 
 	defer create.Close()
 
-	getCandy(c)
-	
 
+	
+	results,err := db.Query("SELECT * FROM candy ORDER BY id DESC LIMIT 0,1")
+	if err != nil {
+		panic(err.Error())
+	}
+
+	//returns the latest added candy
+	for results.Next(){
+		var newCandy Candy
+
+		err = results.Scan(&newCandy.Id,&newCandy.Name,&newCandy.Type,&newCandy.Quantity)
+		if err != nil{
+			panic(err.Error())
+		}
+		c.IndentedJSON(http.StatusOK,newCandy)
+
+
+		}	
+	
 }
 
 //adds/removes one from the quantity of a candy with a specified id in the database
